@@ -21,6 +21,7 @@
 #include <pwd.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include "MobileDevice.h"
+#include "simu.h"
 
 #include "extern.h"
 
@@ -427,11 +428,9 @@ int main (int argc, char * const argv[])
                 break;
             case 's':
             {
-                //            int pathLength = strlen(optarg) + strlen(getpwuid(getuid())->pw_dir) + strlen("/Library/Logs/CoreSimulator//system.log");
-                //            simulatorLogPath = malloc(pathLength + 1);/* Don't forget null terminator! */
-                //            sprintf(simulatorLogPath, "%s/Library/Logs/CoreSimulator/%s/system.log", getpwuid(getuid())->pw_dir, optarg);
-                simulatorLogPath = "/Users/wz/Desktop/sim.log";
-                printf("%s\n", simulatorLogPath);
+                [simu enableSimLog];
+                simulatorLogPath = [simu simLogDir];
+                printf("simulator log path: %s\n", simulatorLogPath);
                 
                 if(access(simulatorLogPath, F_OK) == -1){
                     fprintf(stderr, "Error: Log for iOS Simulator version %s not found.\n", optarg);

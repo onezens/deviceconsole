@@ -10,6 +10,7 @@
 		350EFD642160B58A0025FA63 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 350EFD632160B58A0025FA63 /* main.m */; };
 		350EFD6B2160B6130025FA63 /* tail.c in Sources */ = {isa = PBXBuildFile; fileRef = 350EFD6A2160B6130025FA63 /* tail.c */; };
 		350EFD6E2160B6340025FA63 /* MobileDevice.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 350EFD6D2160B6340025FA63 /* MobileDevice.framework */; };
+		350EFD762160BB3A0025FA63 /* simu.mm in Sources */ = {isa = PBXBuildFile; fileRef = 350EFD752160BB3A0025FA63 /* simu.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -31,6 +32,8 @@
 		350EFD6D2160B6340025FA63 /* MobileDevice.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MobileDevice.framework; path = ../../../../../System/Library/PrivateFrameworks/MobileDevice.framework; sourceTree = "<group>"; };
 		350EFD6F2160B6870025FA63 /* extern.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = extern.h; sourceTree = SOURCE_ROOT; };
 		350EFD702160B6980025FA63 /* MobileDevice.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MobileDevice.h; sourceTree = SOURCE_ROOT; };
+		350EFD742160BB3A0025FA63 /* simu.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = simu.h; sourceTree = "<group>"; };
+		350EFD752160BB3A0025FA63 /* simu.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = simu.mm; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +72,8 @@
 				350EFD6F2160B6870025FA63 /* extern.h */,
 				350EFD6A2160B6130025FA63 /* tail.c */,
 				350EFD632160B58A0025FA63 /* main.m */,
+				350EFD742160BB3A0025FA63 /* simu.h */,
+				350EFD752160BB3A0025FA63 /* simu.mm */,
 			);
 			path = ios;
 			sourceTree = "<group>";
@@ -140,6 +145,7 @@
 			files = (
 				350EFD642160B58A0025FA63 /* main.m in Sources */,
 				350EFD6B2160B6130025FA63 /* tail.c in Sources */,
+				350EFD762160BB3A0025FA63 /* simu.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
