@@ -1,3 +1,19 @@
+//
+//  main.m
+//  ios
+//
+//  Created by wz on 2018/9/30.
+//  Copyright © 2018年 wz. All rights reserved.
+//
+
+//
+//  main.m
+//  log
+//
+//  Created by wz on 2018/9/30.
+//
+
+#import <Foundation/Foundation.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <getopt.h>
@@ -27,6 +43,7 @@ static char excludeOccurrences[256];
 static void (*printMessage)(int fd, const char *, size_t);
 static void (*printSeparator)(int fd);
 static int case_insensitive;
+NSString *newLog;
 
 static inline void write_fully(int fd, const char *buffer, size_t length)
 {
@@ -67,46 +84,46 @@ static bool find_in_string(const char *buffer, const char *pattern, bool case_in
     } else {
         found = strstr(buffer, pattern);
     }
-
+    
     return found;
 }
 
 static unsigned char should_print_message(const char *buffer, size_t length)
 {
-    if (length < 3)
-        return 0; // don't want blank lines
-
+//    if (length < 3)
+//        return 0; // don't want blank lines
+    
     size_t space_offsets[3];
     find_space_offsets(buffer, length, space_offsets);
-
+    
     // Check whether process name matches the one passed to -p option and filter if needed
     if (requiredProcessName != NULL) {
         int nameLength = space_offsets[1] - space_offsets[0]; //This size includes the NULL terminator.
-
+        
         char *processName = malloc(nameLength);
         processName[nameLength - 1] = '\0';
         memcpy(processName, buffer + space_offsets[0] + 1, nameLength - 1);
-
+        
         for (int i = strlen(processName); i != 0; i--)
             // the full process name looks like 'kernel(AppleBiometricSensor)[0]' in iOS 10
             // or 'kernel[0]' in iOS below 10
             // -> strip everything behind the first '(' or '['
             if (processName[i] == '[' || processName[i] == '(')
                 processName[i] = '\0';
-
+        
         if (!find_in_string(processName, requiredProcessName, case_insensitive)){
             free(processName);
             return 0;
         }
         free(processName);
     }
-
+    
     // More filtering options can be added here and return 0 when they won't meed filter criteria
     if (strlen(includeOccurrences) && !find_in_string(buffer, includeOccurrences, case_insensitive))
     {
         return 0;
     }
-
+    
     if (strlen(excludeOccurrences) && find_in_string(buffer, excludeOccurrences, case_insensitive))
     {
         return 0;
@@ -140,12 +157,12 @@ static void write_colored(int fd, const char *buffer, size_t length)
         write_fully(fd, buffer, length);
         return;
     }
-
+    
     size_t space_offsets[3];
     int o = find_space_offsets(buffer, length, space_offsets);
-
+    
     if (o == 3) {
-
+        
         if (!message_only) {
             // Log date and device name
             write_const(fd, COLOR_DARK_WHITE);
@@ -210,7 +227,7 @@ static void write_colored(int fd, const char *buffer, size_t length)
         CFRelease(logMessage);
         CFStringFindAndReplace(mutableLogMessage, CFSTR("\\^["), CFSTR("\e"), CFRangeMake(0, CFStringGetLength(mutableLogMessage)), 0);
         const char *coloredMessage = CFStringGetCStringPtr( mutableLogMessage, kCFStringEncodingMacRoman );
-
+        
         if (coloredMessage != NULL) {
             write_string(fd, coloredMessage);
         }else{
@@ -237,12 +254,12 @@ static void SocketCallback(CFSocketRef s, CFSocketCallBackType type, CFDataRef a
         while ((buffer[extentLength] != '\0') && extentLength != length) {
             extentLength++;
         }
-
+        
         if (should_print_message(buffer, extentLength)) {
             printMessage(1, buffer, extentLength);
             printSeparator(1);
         }
-
+        
         length -= extentLength;
         buffer += extentLength;
     }
@@ -335,8 +352,7 @@ static void color_separator(int fd)
     write_const(fd, COLOR_DARK_WHITE "--" COLOR_RESET "\n");
 }
 
-void simulator_write_callback(char *p, size_t size){
-    
+void simulator_do_write(char *p, size_t size){
     char buffer[size];
     bzero(buffer, sizeof(buffer));
     memcpy(&buffer, p, size);
@@ -346,95 +362,114 @@ void simulator_write_callback(char *p, size_t size){
     }
 }
 
+void simulator_write_callback(char *p, size_t size){
+    NSString *log = [NSString stringWithUTF8String:p];
+    NSRange range = [log rangeOfString:@": "];
+    if (range.location != NSNotFound) {
+        NSString *info = [log substringToIndex:range.location];
+        NSString *detail = [log substringFromIndex:range.location];
+        NSArray *logArr = [info componentsSeparatedByString:@" "];
+        if (logArr.count==30) {
+            newLog = [NSString stringWithFormat:@"%@ %@ %@ %@ %@", logArr[0], logArr[1], logArr[27], logArr[29], detail];
+            char *log = (char *)[newLog UTF8String];
+            simulator_do_write(log, [newLog lengthOfBytesUsingEncoding:NSUTF8StringEncoding]);
+        }
+        return;
+    }
+    
+    write_fully(1, p, size);
+}
+
+
 static void log_simulator(){
     FILE *fp = fopen(simulatorLogPath, "r");
-
+    
     if(fp == NULL){
         fprintf(stderr, "Error: Could not open simulator log: %s", simulatorLogPath);
         return;
     }
-
+    
     log_tail(fp);
     fclose(fp);
 }
 
 int main (int argc, char * const argv[])
 {
-
-  int c;
-
-  static struct option long_options[] =
-  {
-      {"case_insensitive", no_argument, (int*)&case_insensitive, 'i'},
-      {"filter", required_argument, NULL, 'f'},
-      {"exclude", required_argument, NULL, 'x'},
-      {"process", required_argument, NULL, 'p'},
-      {"udid", required_argument, NULL, 'u'},
-      {"simulator", required_argument, NULL, 's'},
-      {"help", no_argument, NULL, 'h'},
-      {"debug", no_argument, (int*)&debug, 1},
-      {"use-separators", no_argument, (int*)&use_separators, 1},
-      {"force-color", no_argument, (int*)&force_color, 1},
-      {"message-only", no_argument, (int*)&message_only, 1},
-      {NULL, 0, NULL, 0}
-  };
-
-  int option_index = 0;
-
-  while((c = getopt_long(argc, argv, "iu:s:p:f:x:", long_options, &option_index)) != -1){
-    switch (c){
-        case 0:
-            break;
-        case 'u':
-            if(requiredDeviceId)
+    
+    int c;
+    
+    static struct option long_options[] =
+    {
+        {"case_insensitive", no_argument, (int*)&case_insensitive, 'i'},
+        {"filter", required_argument, NULL, 'f'},
+        {"exclude", required_argument, NULL, 'x'},
+        {"process", required_argument, NULL, 'p'},
+        {"udid", required_argument, NULL, 'u'},
+        {"simulator", required_argument, NULL, 's'},
+        {"help", no_argument, NULL, 'h'},
+        {"debug", no_argument, (int*)&debug, 1},
+        {"use-separators", no_argument, (int*)&use_separators, 1},
+        {"force-color", no_argument, (int*)&force_color, 1},
+        {"message-only", no_argument, (int*)&message_only, 1},
+        {NULL, 0, NULL, 0}
+    };
+    
+    int option_index = 0;
+    
+    while((c = getopt_long(argc, argv, "iu:s:p:f:x:", long_options, &option_index)) != -1){
+        switch (c){
+            case 0:
+                break;
+            case 'u':
+                if(requiredDeviceId)
                     CFRelease(requiredDeviceId);
-            requiredDeviceId = CFStringCreateWithCString(kCFAllocatorDefault, optarg, kCFStringEncodingASCII);
-            break;
-        case 's':
-        {
-//            int pathLength = strlen(optarg) + strlen(getpwuid(getuid())->pw_dir) + strlen("/Library/Logs/CoreSimulator//system.log");
-//            simulatorLogPath = malloc(pathLength + 1);/* Don't forget null terminator! */
-//            sprintf(simulatorLogPath, "%s/Library/Logs/CoreSimulator/%s/system.log", getpwuid(getuid())->pw_dir, optarg);
-            simulatorLogPath = "/Users/wz/Desktop/sim.log";
-            printf("%s\n", simulatorLogPath);
-
-            if(access(simulatorLogPath, F_OK) == -1){
-                fprintf(stderr, "Error: Log for iOS Simulator version %s not found.\n", optarg);
-                return 1;
+                requiredDeviceId = CFStringCreateWithCString(kCFAllocatorDefault, optarg, kCFStringEncodingASCII);
+                break;
+            case 's':
+            {
+                //            int pathLength = strlen(optarg) + strlen(getpwuid(getuid())->pw_dir) + strlen("/Library/Logs/CoreSimulator//system.log");
+                //            simulatorLogPath = malloc(pathLength + 1);/* Don't forget null terminator! */
+                //            sprintf(simulatorLogPath, "%s/Library/Logs/CoreSimulator/%s/system.log", getpwuid(getuid())->pw_dir, optarg);
+                simulatorLogPath = "/Users/wz/Desktop/sim.log";
+                printf("%s\n", simulatorLogPath);
+                
+                if(access(simulatorLogPath, F_OK) == -1){
+                    fprintf(stderr, "Error: Log for iOS Simulator version %s not found.\n", optarg);
+                    return 1;
+                }
+                break;
             }
-            break;
+            case 'i':
+                case_insensitive = 1;
+                break;
+            case 'p':
+                requiredProcessName = malloc(strlen(optarg) + 1);
+                requiredProcessName[strlen(optarg)] = '\0';
+                
+                strcpy(requiredProcessName, optarg);
+                break;
+            case 'f':
+                strcpy(includeOccurrences, optarg);
+                break;
+            case 'x':
+                strcpy(excludeOccurrences, optarg);
+                break;
+            case '?':
+                goto usage;
+                break;
+            default:
+                abort();
         }
-        case 'i':
-            case_insensitive = 1;
-            break;
-        case 'p':
-            requiredProcessName = malloc(strlen(optarg) + 1);
-            requiredProcessName[strlen(optarg)] = '\0';
-
-            strcpy(requiredProcessName, optarg);
-            break;
-        case 'f':
-            strcpy(includeOccurrences, optarg);
-            break;
-        case 'x':
-            strcpy(excludeOccurrences, optarg);
-            break;
-        case '?':
-            goto usage;
-            break;
-        default:
-            abort();
     }
-  }
     if(requiredDeviceId && simulatorLogPath){
         fprintf(stderr, "Error: --simulator and --udid cannot be used simultaneously.\n");
         return 1;
     }
-
+    
     if(simulatorLogPath && debug){
         printf("Warning: ignoring --debug flag due to --simulator.\n");
     }
-
+    
     if (force_color || isatty(1)) {
         printMessage = &write_colored;
         printSeparator = use_separators ? &color_separator : &no_separator;
@@ -442,7 +477,7 @@ int main (int argc, char * const argv[])
         printMessage = &write_fully;
         printSeparator = use_separators ? &plain_separator : &no_separator;
     }
-
+    
     if(simulatorLogPath){
         log_simulator();
         return 1;
@@ -453,7 +488,7 @@ int main (int argc, char * const argv[])
     }
     CFRunLoopRun();
     return 0;
-
+    
 usage:
     fprintf(stderr, "Usage: %s [options]\nOptions:\n-i | --case-insensitive     Make filters case-insensitive\n-f | --filter <string>      Filter include by single word occurrences (case-sensitive)\n-x | --exclude <string>     Filter exclude by single word occurrences (case-sensitive)\n-p | --process <string>     Filter by process name (case-sensitive)\n-u | --udid <udid>          Show only logs from a specific device\n-s | --simulator <version>  Show logs from iOS Simulator\n     --debug                Include connect/disconnect messages in standard out\n     --use-separators       Skip a line between each line\n     --force-color          Force colored text\n     --message-only          Display only level and message\nControl-C to disconnect\n", argv[0]);
     return 1;
